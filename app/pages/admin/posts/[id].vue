@@ -295,6 +295,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       imagePath: imagePathUrl,
       categoryId: String(state.categories!),
       authorId: String(state.author!),
+      status: state.status!,
       formatType: state.formatType!
     };
 
