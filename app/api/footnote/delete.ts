@@ -2,7 +2,7 @@ import type { Footnote } from '~/types/models';
 const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
-export async function deleteFootnote(id: number) {
+export async function deleteFootnote(id: string) {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {

@@ -2,8 +2,8 @@ const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
 export interface Role {
-    label: string;
-    value: string;
+    name: string;
+    id: string;
 }
 
 export async function fetchRoles() {

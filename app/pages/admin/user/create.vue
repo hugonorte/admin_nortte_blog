@@ -39,8 +39,22 @@ function onError(event: FormErrorEvent) {
 
 import { fetchRoles, type Role } from '~/api/roles/get';
 
-const { data: fetchedRoles } = await useAsyncData<Role[]>('roles', () => fetchRoles(), { server: false })
-const roleOptions = computed(() => fetchedRoles.value || [])
+const roleOptions = ref<{label: string, value: string}[]>([])
+
+onMounted(async () => {
+  try {
+    const rolesData = await fetchRoles()
+    if (rolesData) {
+      roleOptions.value = rolesData.map(role => ({ label: role.name, value: role.id }))
+    }
+  } catch (error) {
+    toast.add({
+      title: 'Erro ao carregar permissões',
+      description: 'Não foi possível carregar as opções de role.',
+      color: 'error',
+    })
+  }
+})
 
 async function onSubmit (event: FormSubmitEvent<Schema>) {
   const userData: User & { password?: string } = {
@@ -92,7 +106,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
             </UFormField>
 
             <UFormField label="Role" name="role" class="mb-5" :ui="{ label: 'custom-label' }">
-              <USelect v-model="state.role" :items="roleOptions" option-attribute="label" value-attribute="value" variant="subtle" placeholder="Selecione a permissão" class="w-full" />
+              <USelect v-model="state.role" :items="roleOptions" variant="subtle" placeholder="Selecione a permissão" class="w-full" />
             </UFormField>
 
             <UFormField label="Senha" name="password" class="mb-5" :ui="{ label: 'custom-label' }">

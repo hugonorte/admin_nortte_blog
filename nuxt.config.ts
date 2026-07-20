@@ -14,7 +14,7 @@ export default defineNuxtConfig({
         ? 'AbertaMente Painel' 
         : process.env.NUXT_PUBLIC_SITE_NAME,
       publicImagesFolder: process.env.NODE_ENV === 'production' 
-        ? 'https://admin.abertamente.net/public/storage' 
+        ? 'https://admin.abertamente.net/public' 
         : process.env.NUXT_PUBLIC_IMAGES_FOLDER,
     }
   },

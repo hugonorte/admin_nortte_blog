@@ -9,7 +9,8 @@ import PostReference from '~/components/PostReference.vue';
 import { fetchAuthors } from '~/api/author/get'
 import { fetchCategories } from '~/api/category/get'
 import { fetchPostById } from '~/api/post/get'
-import { updatePost } from '~/api/post/patch'
+import { updatePost, updatePostStatus } from '~/api/post/patch'
+import { uploadFile } from '~/api/upload/upload'
 import { ref, computed, reactive, onMounted, markRaw } from 'vue' // Ensuring imports are consolidated if needed, or rely on Nuxt auto-imports but keeping structure
 import type { Editor } from '@tiptap/vue-3'
 import ImageUploadExtension from './EditorImageUploadExtension'
@@ -59,7 +60,9 @@ const currentImage = ref<string | null>(null)
 const currentImageUrl = computed(() => {
     if (!currentImage.value) return null
     if (currentImage.value.startsWith('http')) return currentImage.value
-    return `${config.public.publicImagesFolder}/${currentImage.value}`
+    const folder = config.public.publicImagesFolder?.replace(/\/$/, '') || ''
+    const imagePath = currentImage.value.startsWith('/') ? currentImage.value : `/${currentImage.value}`
+    return `${folder}${imagePath}`
 })
 
 onMounted(async () => {
@@ -70,18 +73,32 @@ onMounted(async () => {
 
     state.title = post.title || ''
     state.tldr = post.tldr || ''
-    state.content = post.content || ''
-    state.author = post.author_id
-    state.categories = post.category_id 
-    state.status = post.status
     
-    // Check if image_path exists and assign to currentImage NOT state.imagePath
-    if (post.image_path) {
-        currentImage.value = post.image_path
+    state.formatType = post.formatType || 'HTML'
+    if (state.formatType === 'HTML') {
+      state.contentHtml = post.content || ''
+    } else {
+      state.contentMarkdown = post.content || ''
     }
 
-    Authors.value = await fetchAuthors()
-    Categories.value = await fetchCategories()
+    state.author = (post as any).authorId
+    state.categories = (post as any).category?.id 
+    state.status = post.status
+    
+    // Check if imagePath exists and assign to currentImage NOT state.imagePath
+    if ((post as any).imagePath) {
+        currentImage.value = (post as any).imagePath
+    }
+
+    const authorsResponse = await fetchAuthors()
+    Authors.value = Array.isArray((authorsResponse as any)?.content) 
+        ? (authorsResponse as any).content 
+        : (Array.isArray(authorsResponse) ? authorsResponse : [])
+
+    const categoriesResponse = await fetchCategories()
+    Categories.value = Array.isArray((categoriesResponse as any)?.content) 
+        ? (categoriesResponse as any).content 
+        : (Array.isArray(categoriesResponse) ? categoriesResponse : [])
     initialBibliographicReferences.value = await fetchBibliographicReferenceByPostId(Post.value.id as number)
     BibliographicReferences.value = initialBibliographicReferences.value.map(ref => ({ ...ref }))
     initialFootnotes.value = await fetchFootnoteByPostId(Post.value.id as number)
@@ -93,15 +110,21 @@ onMounted(async () => {
   }
 })
 
+const markdownInputMethod = ref('text')
+
 const state = reactive({
   title: '',
   tldr: '',
-  content: '',
+  contentHtml: '',
+  contentMarkdown: '',
+  formatType: 'HTML',
   categories: undefined as number | undefined,
   imagePath: undefined as any, // Should remain undefined or be a File/FileList
   author: undefined as number | undefined,
   status: undefined as string | undefined,
 })
+
+
 
 type Schema = typeof state
 
@@ -109,15 +132,17 @@ function validate(state: Partial<Schema>): FormError[] {
   const errors = []
   if (!state.title) errors.push({ name: 'title', message: 'O título do post é um campo obrigatório' })
   if (!state.tldr) errors.push({ name: 'tldr', message: 'O resumo do post é um campo obrigatório' })
-  if (!state.content) errors.push({ name: 'content', message: 'O conteúdo do post é um campo obrigatório' })
+  if (state.formatType === 'HTML' && !state.contentHtml) errors.push({ name: 'contentHtml', message: 'O conteúdo do post é um campo obrigatório' })
+  if (state.formatType === 'MARKDOWN' && !state.contentMarkdown) errors.push({ name: 'contentMarkdown', message: 'O conteúdo do post é um campo obrigatório' })
   if (!state.categories || state.categories === undefined) errors.push({ name: 'categories', message: 'Pelo menos uma categoria deve ser selecionada' })
-  
+
   // Validate image: required only if no current image exists AND no new image is uploaded
   if (!state.imagePath && !currentImage.value) {
     errors.push({ name: 'imagePath', message: 'A imagem do post é um campo obrigatório' })
   }
-  
+
   if (!state.author) errors.push({ name: 'author', message: 'O autor do post é um campo obrigatório' })
+  if (!state.status) errors.push({ name: 'status', message: 'O status do post é um campo obrigatório' })
   return errors
 }
 
@@ -209,9 +234,9 @@ const authorOptions = computed(() =>
 
 const statusOptions = computed(() =>
   [
-    { label: 'Rascunho', value: 'draft' },
-    { label: 'Publicado', value: 'published' },
-    { label: 'Arquivado', value: 'archived' },
+    { label: 'Rascunho', value: 'DRAFT' },
+    { label: 'Publicado', value: 'PUBLISHED' },
+    { label: 'Arquivado', value: 'ARCHIVED' },
   ]
 )
 
@@ -223,7 +248,7 @@ const categoryOptions = computed(() =>
 const addReference = () => {
   BibliographicReferences.value.push(
     {
-      id: (BibliographicReferences.value.length + 1)*-1,
+      id: String((BibliographicReferences.value.length + 1)*-1),
       description: ""
     }
   )
@@ -232,53 +257,63 @@ const addReference = () => {
 const addFootnote = () => {
   Footnotes.value.push(
     {
-      id: (Footnotes.value.length + 1)*-1,
+      id: String((Footnotes.value.length + 1)*-1),
       description: ""
     }
   )
-  console.log("Footnotes", Footnotes.value)
-  console.log("initialFootnotes", initialFootnotes.value)
+}
+
+const onMarkdownFileChange = (val: any) => {
+  if (!val) return;
+  const file = Array.isArray(val) ? val[0] : val;
+  if (file && file instanceof File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      state.contentMarkdown = e.target?.result as string
+    }
+    reader.readAsText(file)
+  }
 }
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
-  const formData = new FormData()
-  // Add _method PUT for Laravel to handle Update with FormData
-  formData.append('_method', 'PATCH') 
-
-  if (event.data.title) formData.append('title', event.data.title)
-  if (event.data.status) formData.append('status', event.data.status)
-  if (event.data.tldr) formData.append('tldr', event.data.tldr)
-  if (event.data.content) formData.append('content', event.data.content)
-  if (event.data.categories) {
-    formData.append('category_id', String(event.data.categories))
-  }
-  // Only append image if a NEW one is uploaded
-  if (event.data.imagePath) {
-    const file = Array.isArray(event.data.imagePath) ? event.data.imagePath[0] : event.data.imagePath
-    // formData.append('image_path', file) // Ensure backend expects 'image_path'
-    formData.append('image_path', file)
-  }
-  if (event.data.author) formData.append('author_id', String(event.data.author))
-
   try {
-    // Use updatePost with the correct ID
-    const post = await updatePost(Number(postId), formData)
+    let imagePathUrl = currentImage.value || '';
+
+    // Only upload image if a NEW one is selected
+    if (state.imagePath) {
+      const file = Array.isArray(state.imagePath) ? state.imagePath[0] : state.imagePath;
+      imagePathUrl = await uploadFile(file, 'post');
+    }
+
+    const slug = state.title ? state.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
+
+    const postPayload = {
+      title: state.title!,
+      slug: slug,
+      content: state.formatType === 'HTML' ? state.contentHtml! : state.contentMarkdown!,
+      tldr: state.tldr!,
+      imagePath: imagePathUrl,
+      categoryId: String(state.categories!),
+      authorId: String(state.author!),
+      formatType: state.formatType!
+    };
+
+    const post = await updatePost(postId as string, postPayload);
+
+    // Update status separately using the dedicated PATCH endpoint
+    if (state.status && state.status !== (Post.value as any).status) {
+      await updatePostStatus(postId as string, state.status);
+    }
 
     toast.add({ title: 'Success', description: 'Post atualizado com sucesso.', color: 'success' })
-    navigateTo('/admin/posts')
+    await navigateTo('/admin/posts')
+  } catch (error: any) {
+    console.error(error);
+    toast.add({ title: 'Error', description: 'Erro: ' + (error?.message || error), color: 'error' })
   }
-  catch (error) {
-    console.error(error)
-    toast.add({ title: 'Error', description: 'Erro ao atualizar post.', color: 'error' })
-  }
-
-  
-  
-  
-
 }
 
-const updateReference = async (id: number | undefined) => {
+const updateReference = async (id: string | undefined) => {
   const filteredObj = BibliographicReferences.value.filter((reference) => reference.id == id)[0]
   const updatedDescription = filteredObj?.description
   if (updatedDescription == "") return
@@ -286,7 +321,7 @@ const updateReference = async (id: number | undefined) => {
   if (id === undefined) return
 
   try {
-    const response = await updateBibliographicReference(id !== undefined ? id : 0, updatedDescription)
+    const response = await updateBibliographicReference(id !== undefined ? String(id) : "", updatedDescription)
     toast.add({ title: 'Success', description: 'Referência atualizada com sucesso.', color: 'success' })
     
     // Update the initial list as well to keep them in sync after a successful update
@@ -302,15 +337,15 @@ const updateReference = async (id: number | undefined) => {
   }
 }
 
-const removeReference = async (id: number | undefined) => {
+const removeReference = async (id: string | undefined) => {
   if (id === undefined) return
-  if (id < 0) {
+  if (Number(id) < 0) {
     BibliographicReferences.value = BibliographicReferences.value.filter(r => r.id !== id)
     return
   }
 
   try {
-    await deleteBibliographicReference(id)
+    await deleteBibliographicReference(String(id))
     toast.add({ title: 'Success', description: 'Referência removida com sucesso.', color: 'success' })
   }
   catch (error) {
@@ -319,13 +354,13 @@ const removeReference = async (id: number | undefined) => {
   }
 }
 
-const saveNewReference = async (tempId: number | undefined) => {
+const saveNewReference = async (tempId: string | undefined) => {
   const reference = BibliographicReferences.value.find(r => r.id === tempId)
   if (!reference) return
 
   try {
     const newRef = await createBibliographicReferences({
-      post_id: Number(postId),
+      post_id: String(postId),
       description: reference.description
     })
     
@@ -344,7 +379,7 @@ const saveNewReference = async (tempId: number | undefined) => {
   }
 }
 
-const updateTargetFootnote = async (id: number | undefined) => {
+const updateTargetFootnote = async (id: string | undefined) => {
   const filteredObj = Footnotes.value.filter((reference) => reference.id == id)[0]
   const updatedDescription = filteredObj?.description
   if (updatedDescription == "") return
@@ -352,7 +387,7 @@ const updateTargetFootnote = async (id: number | undefined) => {
   if (id === undefined) return
 
   try {
-    const response = await updateFootnote(id, updatedDescription)
+    const response = await updateFootnote(String(id), updatedDescription)
     toast.add({ title: 'Success', description: 'Nota de rodapé atualizada com sucesso.', color: 'success' })
     
     // Update the initial list as well to keep them in sync after a successful update
@@ -368,15 +403,15 @@ const updateTargetFootnote = async (id: number | undefined) => {
   }
 }
 
-const removeFootnote = async (id: number | undefined) => {
+const removeFootnote = async (id: string | undefined) => {
   if (id === undefined) return
-  if (id < 0) {
+  if (Number(id) < 0) {
     Footnotes.value = Footnotes.value.filter(r => r.id !== id)
     return
   }
 
   try {
-    await deleteFootnote(id)
+    await deleteFootnote(String(id))
     toast.add({ title: 'Success', description: 'Nota de rodapé removida com sucesso.', color: 'success' })
   }
   catch (error) {
@@ -385,13 +420,13 @@ const removeFootnote = async (id: number | undefined) => {
   }
 }
 
-const saveNewFootnote = async (tempId: number | undefined) => {
+const saveNewFootnote = async (tempId: string | undefined) => {
   const targetFootnote = Footnotes.value.find(r => r.id === tempId)
   if (!targetFootnote) return
 
   try {
     const newRef = await createFootnote({
-      post_id: Number(postId),
+      post_id: String(postId),
       description: targetFootnote.description
     })
     
@@ -457,26 +492,59 @@ const saveNewFootnote = async (tempId: number | undefined) => {
             highlight />
         </UFormField>
 
-        <h3 class="custom-label">Conteúdo</h3>
-        <div v-if="!isLoading">
-          <UEditor
-          key="post-content-editor"
-          v-slot="{ editor }"
-          v-model="state.content"
-          :extensions="editorExtensions"
-          :handlers="customHandlers"
-          content-type="html"
-          :ui="{ base: 'p-8 sm:px-16' }"
-          class="w-full min-h-74"
-          placeholder="Escreva aqui..."
-        >
-          <UEditorToolbar
-            :editor="editor"
-            :items="items"
-            class="border-b border-muted py-2 px-8 sm:px-16 overflow-x-auto"
-          />
-        </UEditor>
-        </div>
+        <UFormField :name="state.formatType === 'HTML' ? 'contentHtml' : 'contentMarkdown'" class="mb-5">
+          <template #label>
+            <h3 class="custom-label">Conteúdo</h3>
+          </template>
+          <div v-if="!isLoading">
+            <UTabs :items="[{ value: 'HTML', label: 'Rich Text' }, { value: 'MARKDOWN', label: 'Markdown' }]" v-model="state.formatType" class="w-full" />
+            
+            <div v-if="state.formatType === 'HTML'" class="mt-4">
+              <UEditor
+                key="post-content-editor"
+                v-slot="{ editor }"
+                v-model="state.contentHtml"
+                :extensions="editorExtensions"
+                :handlers="customHandlers"
+                content-type="html"
+                :ui="{ base: 'p-8 sm:px-16' }"
+                class="w-full min-h-74"
+                placeholder="Escreva aqui..."
+              >
+                <UEditorToolbar
+                  :editor="editor"
+                  :items="items"
+                  class="border-b border-muted py-2 px-8 sm:px-16 overflow-x-auto"
+                />
+              </UEditor>
+            </div>
+            <div v-else-if="state.formatType === 'MARKDOWN'" class="mt-4">
+              <URadioGroup
+                v-model="markdownInputMethod"
+                :items="[{ value: 'text', label: 'Escrever na tela' }, { value: 'file', label: 'Fazer upload de arquivo .md' }]"
+                class="mb-4"
+              />
+              
+              <div v-if="markdownInputMethod === 'text'">
+                <UTextarea v-model="state.contentMarkdown" color="neutral" variant="outline" placeholder="Escreva o Markdown aqui..." class="w-full min-h-[300px] font-mono" :rows="15" />
+              </div>
+              <div v-else>
+                <UFileUpload
+                  accept=".md"
+                  label="Arraste um arquivo markdown ou clique para selecionar"
+                  description="Apenas arquivos .md"
+                  color="primary"
+                  highlight
+                  @update:model-value="onMarkdownFileChange"
+                />
+                <div v-if="state.contentMarkdown" class="mt-4">
+                  <h4 class="text-sm font-medium mb-2">Conteúdo carregado:</h4>
+                  <UTextarea v-model="state.contentMarkdown" color="neutral" variant="outline" class="w-full min-h-[200px] font-mono" :rows="10" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </UFormField>
         
         <UFormField label="Categorias" name="categories" class="mb-5" :ui="{ label: 'custom-label' }">
           <USelect v-model="state.categories" :items="categoryOptions" class="w-full" />

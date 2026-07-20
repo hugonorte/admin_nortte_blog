@@ -12,7 +12,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const userId = route.params.id as string
+const userId = computed(() => route.params.id as string)
 
 const schema = z.object({
   first_name: z.string({ required_error: 'O nome é um campo obrigatório' }).min(1, 'O nome é obrigatório'),
@@ -40,14 +40,21 @@ function onError(event: FormErrorEvent) {
   })
 }
 
-const { data: fetchedRoles } = await useAsyncData<Role[]>('roles', () => fetchRoles(), { server: false })
-const roleOptions = computed(() => fetchedRoles.value || [])
+const roleOptions = ref<{label: string, value: string}[]>([])
 
 // Carregar dados do usuário
 const isLoading = ref(true)
 onMounted(async () => {
   try {
-    const userData = await fetchUserById(userId)
+    const [userData, rolesData] = await Promise.all([
+      fetchUserById(userId.value),
+      fetchRoles()
+    ])
+    
+    if (rolesData) {
+      roleOptions.value = rolesData.map(role => ({ label: role.name, value: role.id }))
+    }
+
     if (userData) {
       state.first_name = userData.first_name
       state.last_name = userData.last_name
@@ -56,8 +63,8 @@ onMounted(async () => {
     }
   } catch (error) {
     toast.add({
-      title: 'Erro ao carregar usuário',
-      description: 'Não foi possível carregar os dados deste usuário.',
+      title: 'Erro ao carregar os dados',
+      description: 'Não foi possível carregar as informações deste usuário ou as permissões.',
       color: 'error',
     })
     navigateTo('/admin/user')
@@ -75,7 +82,8 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
   }
 
   try {
-    await updateUser(Number(userId), userData)
+    const submitId = useRoute().params.id as string
+    await updateUser(submitId, userData)
     toast.add({
       title: 'Usuário atualizado com sucesso!',
       color: 'success',
@@ -120,7 +128,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
             </UFormField>
 
             <UFormField label="Role" name="role" class="mb-5" :ui="{ label: 'custom-label' }">
-              <USelect v-model="state.role" :items="roleOptions" option-attribute="label" value-attribute="value" variant="subtle" placeholder="Selecione a permissão" class="w-full" />
+              <USelect v-model="state.role" :items="roleOptions" variant="subtle" placeholder="Selecione a permissão" class="w-full" />
             </UFormField>
 
             <template #footer>

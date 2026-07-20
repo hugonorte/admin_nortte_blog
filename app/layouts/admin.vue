@@ -20,31 +20,31 @@ const filteredItems = computed<NavigationMenuItem[]>(() => {
       label: 'Home',
       icon: 'i-lucide-house',
       to: '/admin/dashboard',
-      roles: ['admin', 'user', 'editor', 'author']
+      roles: ['ADMIN', 'user', 'editor', 'author']
     }, 
     {
       label: 'Posts',
       icon: 'i-lucide-file-text',
       to: '/admin/posts',
-      roles: ['admin', 'editor', 'author']
+      roles: ['ADMIN', 'editor', 'author']
     }, 
     {
       label: 'Autores',
       icon: 'i-lucide-user',
       to: '/admin/author',
-      roles: ['admin', 'editor']
+      roles: ['ADMIN', 'editor']
     },
     {
       label: 'Categorias',
       icon: 'i-lucide-tag',
       to: '/admin/category',
-      roles: ['admin', 'editor']
+      roles: ['ADMIN', 'editor']
     },
     {
       label: 'Usuários',
       icon: 'i-lucide-users',
       to: '/admin/user',
-      roles: ['admin']
+      roles: ['ADMIN']
     }
   ];
 

@@ -2,7 +2,15 @@ import type { User } from '~/types/models';
 const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
-export async function fetchUsers() {
+export interface PaginatedResponse<T> {
+    content: T[];
+    totalPages: number;
+    totalElements: number;
+    size: number;
+    number: number;
+}
+
+export async function fetchUsers(page: number = 0, size: number = 20) {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {
@@ -17,15 +25,16 @@ export async function fetchUsers() {
             method: 'GET' as const,
             credentials: 'include' as RequestCredentials,
             headers: {} as Record<string, string>,
+            query: { page, size }
         };
 
         if (token) {
             options.headers.Authorization = `Bearer ${token}`;
         }
 
-        const response = await $fetch<{ data: User[] }>(`${apiUrl}/user`, options)
+        const response = await $fetch<PaginatedResponse<User>>(`${apiUrl}/user`, options)
 
-        return response.data
+        return response
     }
     catch (error) {
         throw createError({

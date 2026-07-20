@@ -1,7 +1,7 @@
 const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
-export async function deleteUser(id: number) : Promise<void> {
+export async function deleteUser(id: string | number) : Promise<void> {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {

@@ -98,7 +98,10 @@ export async function fetchBibliographicReferenceByPostId(postId: number) {
 
         return response
     }
-    catch (error) {
+    catch (error: any) {
+        if (error.statusCode === 404 || error.response?.status === 404) {
+            return []
+        }
         throw createError({
             statusCode: 500,
             statusMessage: 'Erro ao buscar referências bibliográficas',

@@ -2,7 +2,7 @@ import type { Footnote } from '~/types/models';
 const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
-export async function updateFootnote(id: number, description: string) {
+export async function updateFootnote(id: string, description: string) {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {

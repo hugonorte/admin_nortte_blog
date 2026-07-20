@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { User } from '~/types/models'
-import { fetchUsers } from '~/api/user/get'
+import { fetchUsers, type PaginatedResponse } from '~/api/user/get'
 import { deleteUser } from '~/api/user/delete'
 
 definePageMeta({
@@ -17,19 +17,37 @@ const isLoading = ref<boolean>(false)
 const globalFilter = ref('')
 const toast = useToast()
 
+const page = ref(1)
+const pageSize = ref(20)
+const totalElements = ref(0)
+
 const isDeleteModalOpen = ref(false)
 const userToDelete = ref<User | null>(null)
 
-onMounted(async () => {
+async function loadUsers() {
   isLoading.value = true
   try {
-    currentUser.value = await auth.getUser() as User | null
-    users.value = await fetchUsers()
+    const response = await fetchUsers(page.value - 1, pageSize.value)
+    users.value = response.content
+    totalElements.value = response.totalElements
   } catch (error) {
     console.error(error)
   } finally {
     isLoading.value = false
   }
+}
+
+onMounted(async () => {
+  try {
+    currentUser.value = await auth.getUser() as User | null
+  } catch (error) {
+    console.error('Error fetching current user:', error)
+  }
+  await loadUsers()
+})
+
+watch(page, () => {
+  loadUsers()
 })
 
 function confirmDelete(user: User) {
@@ -43,6 +61,11 @@ function confirmDelete(user: User) {
   }
   userToDelete.value = user
   isDeleteModalOpen.value = true
+}
+
+function closeDeleteModal() {
+  isDeleteModalOpen.value = false
+  userToDelete.value = null
 }
 
 async function handleDelete() {
@@ -69,11 +92,6 @@ async function handleDelete() {
 }
 
 const columns: TableColumn<User>[] = [
-  {
-    accessorKey: 'id',
-    header: '#',
-    cell: ({ row }) => `#${row.getValue('id')}`
-  },
   {
     accessorKey: 'first_name',
     header: 'Nome',
@@ -121,6 +139,10 @@ const columns: TableColumn<User>[] = [
             </div>
           </template>
         </UTable>
+
+        <div class="flex justify-end px-4 py-3 border-t border-accented">
+          <UPagination v-model="page" :page-count="pageSize" :total="totalElements" />
+        </div>
       </div>
 
       <UModal v-model:open="isDeleteModalOpen">
@@ -134,7 +156,7 @@ const columns: TableColumn<User>[] = [
             </p>
             <template #footer>
               <div class="flex justify-end gap-3">
-                <UButton color="neutral" variant="ghost" @click="isDeleteModalOpen = false">Cancelar</UButton>
+                <UButton color="neutral" variant="ghost" @click="closeDeleteModal">Cancelar</UButton>
                 <UButton color="error" @click="handleDelete">Sim, Excluir</UButton>
               </div>
             </template>

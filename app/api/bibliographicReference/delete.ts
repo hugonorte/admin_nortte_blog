@@ -2,7 +2,7 @@ import type { BibliographicReference } from '~/types/models';
 const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
-export async function deleteBibliographicReference(id: number) {
+export async function deleteBibliographicReference(id: string) {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {

@@ -2,7 +2,7 @@ import type { BibliographicReference } from '~/types/models';
 const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
-export async function updateBibliographicReference(id: number, description: string) {
+export async function updateBibliographicReference(id: string, description: string) {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {

@@ -2,7 +2,7 @@ import type { User } from '~/types/models';
 const config = useRuntimeConfig()
 const apiUrl = config.public.apiBaseUrl;
 
-export async function updateUser(id: number, data: Partial<User>) : Promise<User> {
+export async function updateUser(id: string | number, data: Partial<User>) : Promise<User> {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {

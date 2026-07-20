@@ -2,7 +2,8 @@
 import { ref, onMounted, h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Post } from '~/types/models'
-import { fetchPostsSummary } from '~/api/post/get'
+import { fetchPosts } from '~/api/post/post'
+import { deletePost } from '~/api/post/delete'
 
 definePageMeta({
   layout: 'admin',
@@ -12,11 +13,37 @@ definePageMeta({
 const posts = ref<Post[]>([])
 const isLoading = ref<boolean>(false)
 const globalFilter = ref('')
+const isDeleteModalOpen = ref(false)
+const postToDelete = ref<string | null>(null)
+const toast = useToast()
+
+const confirmDelete = (id: string) => {
+  postToDelete.value = id
+  isDeleteModalOpen.value = true
+}
+
+const handleDelete = async () => {
+  if (!postToDelete.value) return
+  try {
+    isLoading.value = true
+    await deletePost(postToDelete.value)
+    toast.add({ title: 'Sucesso', description: 'Post excluído com sucesso', color: 'success' })
+    const response = await fetchPosts()
+    posts.value = response.content || []
+  } catch (error) {
+    toast.add({ title: 'Erro', description: 'Não foi possível excluir o post', color: 'error' })
+  } finally {
+    isDeleteModalOpen.value = false
+    postToDelete.value = null
+    isLoading.value = false
+  }
+}
 
 onMounted(async () => {
   isLoading.value = true
   try {
-    posts.value = await fetchPostsSummary()
+    const response = await fetchPosts()
+    posts.value = response.content || []
   } catch (error) {
     console.error(error)
   } finally {
@@ -26,27 +53,29 @@ onMounted(async () => {
 
 const columns: TableColumn<Post>[] = [
   {
-    accessorKey: 'id',
-    header: '#',
-    cell: ({ row }) => `#${row.getValue('id') }`
-  },
-  {
     accessorKey: 'title',
     header: 'Título'
   },
   {
-    accessorKey: 'author_name',
+    accessorKey: 'authorName',
     header: 'Autor',
   },
   {
-    accessorKey: 'category_name',
-    header: 'Categoria'
+    accessorKey: 'category',
+    header: 'Categoria',
+    cell: ({ row }) => {
+      // row.original might have category as an object { id, name }
+      const cat = row.getValue('category') as any
+      return cat?.name || ''
+    }
   },
   {
-    accessorKey: 'created_at',
+    accessorKey: 'createdAt',
     header: 'Criado em',
     cell: ({ row }) => {
-      const date = new Date(row.getValue('created_at'))
+      const dateVal = row.getValue('createdAt')
+      if (!dateVal) return ''
+      const date = new Date(dateVal as string)
       return date.toLocaleDateString('pt-BR')
     }
   },
@@ -71,14 +100,23 @@ const columns: TableColumn<Post>[] = [
     accessorKey: 'actions',
     header: 'Ações',
     cell: ({ row }) => {
-      const postId = row.original.id
-      return h(resolveComponent('UButton'), { 
-            color: 'primary', 
-            size: 'sm', 
-            icon:"i-lucide-pencil",
-            to: `/admin/posts/${postId}` ,
-            label:"Editar"
-      })
+      const postId = String(row.original.id)
+      return h('div', { class: 'flex gap-2' }, [
+        h(resolveComponent('UButton'), { 
+          color: 'primary', 
+          size: 'sm', 
+          icon: "i-lucide-pencil",
+          to: `/admin/posts/${postId}` ,
+          label: "Editar"
+        }),
+        h(resolveComponent('UButton'), { 
+          color: 'error', 
+          size: 'sm', 
+          icon: "i-lucide-trash-2",
+          class: "delete-post-btn",
+          onClick: () => confirmDelete(postId)
+        })
+      ])
     }
   }
 ]
@@ -105,6 +143,27 @@ const columns: TableColumn<Post>[] = [
 
         <UTable ref="table" v-model:global-filter="globalFilter" :data="posts" :columns="columns" />
       </div>
+
+      <UModal v-model:open="isDeleteModalOpen">
+        <template #content>
+          <UCard>
+            <template #header>
+              <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                Confirmar Exclusão
+              </h3>
+            </template>
+            <div class="py-4">
+              <p>Você tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.</p>
+            </div>
+            <template #footer>
+              <div class="flex justify-end gap-3">
+                <UButton color="neutral" variant="ghost" @click="() => { isDeleteModalOpen = false }">Cancelar</UButton>
+                <UButton color="error" @click="handleDelete">Excluir Post</UButton>
+              </div>
+            </template>
+          </UCard>
+        </template>
+      </UModal>
     </UContainer>
   </UPageBody>
 </template>

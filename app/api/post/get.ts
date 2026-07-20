@@ -94,7 +94,7 @@ export async function fetchPostById(id: string) {
             options.headers.Authorization = `Bearer ${token}`;
         }
 
-        const response = await $fetch<Post>(`${apiUrl}/posts/${id}`, options)
+        const response = await $fetch<Post>(`${apiUrl}/post/${id}`, options)
 
         return response
     }

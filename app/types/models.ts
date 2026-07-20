@@ -2,7 +2,7 @@ export interface User {
   created_at?: string | Date
   email?: string
   email_verified_at?: string | Date | null
-  id?: number
+  id?: number | string
   first_name?: string
   last_name?: string
   full_name?: string
@@ -24,10 +24,12 @@ export interface Post {
   created_at?: string | Date
   updated_at?: string | Date
   deleted_at?: string | Date
+  formatType?: string
+  htmlContent?: string
 }
 
 export interface Category {
-  id?: number
+  id?: number | string
   name?: string
   created_at?: string | Date
   updated_at?: string | Date
@@ -35,7 +37,7 @@ export interface Category {
 }
 
 export interface Author {
-  id?: number
+  id?: number | string
   name?: string
   email?: string
   bio?: string
@@ -48,16 +50,16 @@ export interface Author {
 }
 
 export interface BibliographicReference {
-  id?: number
-  post_id?: number
+  id?: string
+  post_id?: string
   description?: string
   created_at?: string | Date
   updated_at?: string | Date
 }
 
 export interface Footnote {
-  id?: number
-  post_id?: number
+  id?: string
+  post_id?: string
   description?: string
   created_at?: string | Date
   updated_at?: string | Date

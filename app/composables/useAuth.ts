@@ -31,19 +31,22 @@ export const useAuth = () => {
 
         const options: LoginOptions = {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', accept: 'text/plain' },
+            headers: { 'Content-Type': 'application/json', accept: 'application/json' },
             credentials: 'include',
             body: JSON.stringify({ email, password }),
         };
 
         try {
             type LoginResponse = {
-                access_token: string
-                token_type: string
-                expires_in: number
+                token: string
+                id: string
+                first_name: string
+                last_name: string
+                email: string
+                role: string
             }
-            const data = await $fetch<LoginResponse>(`${apiUrl}/login`, options)
-            token.value = data.access_token
+            const data = await $fetch<LoginResponse>(`${apiUrl}/auth/login`, options)
+            token.value = data.token
 
             return data
         }
@@ -82,11 +85,22 @@ export const useAuth = () => {
         }
     }
 
-    const logout = () => {
-        token.value = null
-        user.value = null
-        navigateTo('/')
-        return void 0
+    const logout = async () => {
+        try {
+            // Chamada ao backend para invalidar o token e limpar o cookie HttpOnly do refresh_token
+            await $fetch(`${apiUrl}/auth/logout`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token.value}` },
+                credentials: 'include'
+            })
+        } catch (error) {
+            console.error('Erro ao fazer logout no backend', error)
+        } finally {
+            // Limpa o estado local de forma síncrona independente do retorno da API
+            token.value = null
+            user.value = null
+            navigateTo('/')
+        }
     }
 
     const refreshToken = async () => {
@@ -97,12 +111,11 @@ export const useAuth = () => {
 
         try {
             type RefreshResponse = {
-                access_token: string
-                token_type: string
-                expires_in: number
+                accessToken: string
+                tokenType: string
             }
             const data = await $fetch<RefreshResponse>(`${apiUrl}/auth/refresh`, options)
-            token.value = data.access_token
+            token.value = data.accessToken
             return
         }
         catch (error) {

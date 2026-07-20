@@ -12,6 +12,7 @@ import type { BibliographicReference, Footnote, Author , Category  } from '~/typ
 import { fetchAuthors } from '~/api/author/get'
 import { fetchCategories } from '~/api/category/get'
 import { createPost } from '~/api/post/post'
+import { uploadFile } from '~/api/upload/upload'
 import { ref, computed, markRaw } from 'vue'
 import type { Editor } from '@tiptap/vue-3'
 import ImageUploadExtension from './EditorImageUploadExtension'
@@ -42,8 +43,15 @@ const Categories = ref<Category[]>([])
 onMounted(async () => {
   isLoading.value = true
   try {
-    Authors.value = await fetchAuthors()
-    Categories.value = await fetchCategories()
+    const authorsResponse = await fetchAuthors()
+    Authors.value = Array.isArray((authorsResponse as any)?.content) 
+        ? (authorsResponse as any).content 
+        : (Array.isArray(authorsResponse) ? authorsResponse : [])
+    
+    const categoriesResponse = await fetchCategories()
+    Categories.value = Array.isArray((categoriesResponse as any)?.content) 
+        ? (categoriesResponse as any).content 
+        : (Array.isArray(categoriesResponse) ? categoriesResponse : [])
   } catch (error) {
     console.error(error)
   } finally {
@@ -51,14 +59,20 @@ onMounted(async () => {
   }
 })
 
+const markdownInputMethod = ref('text')
+
 const state = reactive({
-  title: undefined,
-  tldr: undefined,
-  content: undefined,
-  categories: undefined,
-  imagePath: undefined,
-  author: undefined,
+  title: '' as string | undefined,
+  tldr: '' as string | undefined,
+  contentHtml: '' as string | undefined,
+  contentMarkdown: '' as string | undefined,
+  formatType: 'HTML' as string,
+  categories: undefined as number | undefined,
+  imagePath: undefined as any,
+  author: undefined as number | undefined,
 })
+
+
 
 type Schema = typeof state
 
@@ -66,7 +80,8 @@ function validate(state: Partial<Schema>): FormError[] {
   const errors = []
   if (!state.title) errors.push({ name: 'title', message: 'O título do post é um campo obrigatório' })
   if (!state.tldr) errors.push({ name: 'tldr', message: 'O resumo do post é um campo obrigatório' })
-  if (!state.content) errors.push({ name: 'content', message: 'O conteúdo do post é um campo obrigatório' })
+  if (state.formatType === 'HTML' && !state.contentHtml) errors.push({ name: 'contentHtml', message: 'O conteúdo do post é um campo obrigatório' })
+  if (state.formatType === 'MARKDOWN' && !state.contentMarkdown) errors.push({ name: 'contentMarkdown', message: 'O conteúdo do post é um campo obrigatório' })
   if (!state.categories || state.categories === undefined) errors.push({ name: 'categories', message: 'Pelo menos uma categoria deve ser selecionada' })
   if (!state.imagePath) errors.push({ name: 'imagePath', message: 'A imagem do post é um campo obrigatório' })
   if (!state.author) errors.push({ name: 'author', message: 'O autor do post é um campo obrigatório' })
@@ -171,7 +186,7 @@ const footnotes = reactive<Footnote[]>([])
 const addReference = () => {
   bibliographicReferences.push(
     { 
-      id: bibliographicReferences.length + 1, 
+      id: String(bibliographicReferences.length + 1), 
       description: "" 
     }
   )
@@ -180,43 +195,64 @@ const addReference = () => {
 const addFootnote = () => {
   footnotes.push(
     { 
-      id: footnotes.length + 1, 
+      id: String(footnotes.length + 1), 
       description: "" 
     }
   )
 }
 
-async function onSubmit(event: FormSubmitEvent<Schema>) {
-  const formData = new FormData()
-  if (event.data.title) formData.append('title', event.data.title)
-  if (event.data.tldr) formData.append('tldr', event.data.tldr)
-  if (event.data.content) formData.append('content', event.data.content)
-  if (event.data.categories) formData.append('category_id', event.data.categories)
-  if (event.data.imagePath) {
-    const file = Array.isArray(event.data.imagePath) ? event.data.imagePath[0] : event.data.imagePath
-    formData.append('image_path', file)
+const onMarkdownFileChange = (val: any) => {
+  if (!val) return;
+  const file = Array.isArray(val) ? val[0] : val;
+  if (file && file instanceof File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      state.contentMarkdown = e.target?.result as string
+    }
+    reader.readAsText(file)
   }
-  if (event.data.author) formData.append('author_id', event.data.author)
-  formData.append('status', 'draft')
-  
-  try{
-    const post = await createPost(formData)
+}
+
+async function onSubmit(event: FormSubmitEvent<Schema>) {
+  try {
+    let imagePathUrl = '';
+    if (state.imagePath) {
+      const file = Array.isArray(state.imagePath) ? state.imagePath[0] : state.imagePath;
+      imagePathUrl = await uploadFile(file, 'post');
+    }
+
+    const slug = state.title ? state.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : '';
+
+    const postPayload = {
+      title: state.title!,
+      slug: slug,
+      content: state.formatType === 'HTML' ? state.contentHtml! : state.contentMarkdown!,
+      tldr: state.tldr!,
+      imagePath: imagePathUrl,
+      categoryId: String(state.categories!),
+      authorId: String(state.author!),
+      status: 'draft',
+      formatType: state.formatType!
+    };
+
+    const post = await createPost(postPayload);
+
     bibliographicReferences.forEach(async (reference) => {
       await createBibliographicReferences({
-        post_id: post.id,
+        post_id: String(post.id),
         description: reference.description
       })
     })
     footnotes.forEach(async (footnote) => {
       await createFootnote({
-        post_id: post.id,
+        post_id: String(post.id),
         description: footnote.description
       })
     })
     toast.add({ title: 'Success', description: 'Post criado com sucesso.', color: 'success' })
-    navigateTo('/admin/posts')
-  }
-  catch (error) {
+    await navigateTo('/admin/posts')
+  } catch (error) {
+    console.error(error);
     toast.add({ title: 'Error', description: 'Erro ao criar post.', color: 'error' })
   }
 }
@@ -259,24 +295,57 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
           </UFormField>
 
 
-          <h3 class="custom-label">Conteúdo</h3>
-          <UEditor
-            key="post-content-editor"
-            v-slot="{ editor }"
-            v-model="state.content"
-            :extensions="editorExtensions"
-            :handlers="customHandlers"
-            content-type="html"
-            :ui="{ base: 'p-8 sm:px-16' }"
-            class="w-full min-h-74"
-            placeholder="Escreva aqui..."
-          >
-            <UEditorToolbar
-              :editor="editor"
-              :items="items"
-              class="border-b border-muted py-2 px-8 sm:px-16 overflow-x-auto"
-            />
-          </UEditor>
+          <UFormField :name="state.formatType === 'HTML' ? 'contentHtml' : 'contentMarkdown'" class="mb-5">
+            <template #label>
+              <h3 class="custom-label">Conteúdo</h3>
+            </template>
+            <UTabs :items="[{ value: 'HTML', label: 'Rich Text' }, { value: 'MARKDOWN', label: 'Markdown' }]" v-model="state.formatType" class="w-full" />
+            
+            <div v-if="state.formatType === 'HTML'" class="mt-4">
+              <UEditor
+                key="post-content-editor"
+                v-slot="{ editor }"
+                v-model="state.contentHtml"
+                :extensions="editorExtensions"
+                :handlers="customHandlers"
+                content-type="html"
+                :ui="{ base: 'p-8 sm:px-16' }"
+                class="w-full min-h-74"
+                placeholder="Escreva aqui..."
+              >
+                <UEditorToolbar
+                  :editor="editor"
+                  :items="items"
+                  class="border-b border-muted py-2 px-8 sm:px-16 overflow-x-auto"
+                />
+              </UEditor>
+            </div>
+            <div v-else-if="state.formatType === 'MARKDOWN'" class="mt-4">
+              <URadioGroup
+                v-model="markdownInputMethod"
+                :items="[{ value: 'text', label: 'Escrever na tela' }, { value: 'file', label: 'Fazer upload de arquivo .md' }]"
+                class="mb-4"
+              />
+              
+              <div v-if="markdownInputMethod === 'text'">
+                <UTextarea v-model="state.contentMarkdown" color="neutral" variant="outline" placeholder="Escreva o Markdown aqui..." class="w-full min-h-[300px] font-mono" :rows="15" />
+              </div>
+              <div v-else>
+                <UFileUpload
+                  accept=".md"
+                  label="Arraste um arquivo markdown ou clique para selecionar"
+                  description="Apenas arquivos .md"
+                  color="primary"
+                  highlight
+                  @update:model-value="onMarkdownFileChange"
+                />
+                <div v-if="state.contentMarkdown" class="mt-4">
+                  <h4 class="text-sm font-medium mb-2">Conteúdo carregado:</h4>
+                  <UTextarea v-model="state.contentMarkdown" color="neutral" variant="outline" class="w-full min-h-[200px] font-mono" :rows="10" />
+                </div>
+              </div>
+            </div>
+          </UFormField>
           
           <UFormField label="Categorias" name="categories" class="mb-5" :ui="{ label: 'custom-label' }">
             <USelect v-model="state.categories" :items="categoryOptions" class="w-full" />
