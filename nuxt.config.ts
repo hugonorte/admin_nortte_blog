@@ -12,15 +12,9 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NODE_ENV === 'production' 
-        ? 'https://admin.abertamente.net/api' 
-        : process.env.NUXT_PUBLIC_API_BASE_URL,
-      siteName: process.env.NODE_ENV === 'production' 
-        ? 'AbertaMente Painel' 
-        : process.env.NUXT_PUBLIC_SITE_NAME,
-      publicImagesFolder: process.env.NODE_ENV === 'production' 
-        ? 'https://admin.abertamente.net/public' 
-        : process.env.NUXT_PUBLIC_IMAGES_FOLDER,
+      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api',
+      siteName: process.env.NUXT_PUBLIC_SITE_NAME || 'Nortte Blog',
+      publicImagesFolder: process.env.NUXT_PUBLIC_IMAGES_FOLDER || 'http://localhost:8080/public',
     }
   },
   // Fix for "Adding different instances of a keyed plugin" error
