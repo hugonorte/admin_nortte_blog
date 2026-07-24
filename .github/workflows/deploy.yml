@@ -56,18 +56,9 @@ jobs:
           name: nuxt-build-output
           path: .output/public
 
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
+      - name: Deploy to Cloudflare
+        uses: cloudflare/wrangler-action@v3
         with:
-          key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          known_hosts: 'placeholder-to-be-replaced'
-
-      - name: Add Known Hosts
-        run: ssh-keyscan -p ${{ secrets.HOSTINGER_SSH_PORT }} -H ${{ secrets.HOSTINGER_SERVER_IP }} >> ~/.ssh/known_hosts
-
-      - name: Deploy via rsync
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 5
-          max_attempts: 3
-          command: rsync -avz --delete -e "ssh -p ${{ secrets.HOSTINGER_SSH_PORT }}" .output/public/ ${{ secrets.HOSTINGER_USERNAME }}@${{ secrets.HOSTINGER_SERVER_IP }}:${{ secrets.HOSTINGER_REMOTE_PATH }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy .output/public --project-name=painel
