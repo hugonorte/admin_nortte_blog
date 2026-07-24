@@ -7,7 +7,7 @@ definePageMeta({
 
 <template>
   <UPageBody>
-    <UPageHeader title="Admin Dashboard"  />
+    <UPageHeader title="Admin Dashboard"  class="px-10"/>
     <UPageHero />
   </UPageBody>
 </template>
