@@ -54,9 +54,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 <template>
   <div class="loginbox">
     <UPageCard class="w-full max-w-md">
-      <div class="logo">
-        Nortte Blog
-      </div>
+      <Logo class="h-6 w-auto" />
       <UAuthForm
         :schema="schema"
         :fields="fields"
