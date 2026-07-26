@@ -11,10 +11,6 @@ type LoginOptions = {
 export const useAuth = () => {
     const config = useRuntimeConfig()
     const apiUrl = config.public.apiBaseUrl
-    if (import.meta.client) {
-        console.log('[useAuth DEBUG] config.public.apiBaseUrl =', config.public.apiBaseUrl)
-        console.log('[useAuth DEBUG] apiUrl =', apiUrl)
-    }
     const token = useState<string | null>('token', () => null)
 
     const decodedTokenValue = async () => {
