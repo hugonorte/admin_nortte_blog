@@ -24,8 +24,6 @@ export default defineNuxtConfig({
       publicImagesFolder: process.env.NUXT_PUBLIC_IMAGES_FOLDER || 'http://localhost:8080/public',
     }
   },
-  // Fix for "Adding different instances of a keyed plugin" error
-  // See: https://ui.nuxt.com/components/editor
   vite: {
     optimizeDeps: {
       include: [
