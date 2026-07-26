@@ -19,9 +19,9 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   runtimeConfig: {
     public: {
-      apiBaseUrl: process.env.NUXT_PUBLIC_API_BASE_URL,
-      siteName: process.env.NUXT_PUBLIC_SITE_NAME,
-      publicImagesFolder: process.env.NUXT_PUBLIC_IMAGES_FOLDER,
+      apiBaseUrl: 'http://localhost:8080/api',
+      siteName: 'Nortte Blog',
+      publicImagesFolder: 'http://localhost:8080/public',
     }
   },
   vite: {
