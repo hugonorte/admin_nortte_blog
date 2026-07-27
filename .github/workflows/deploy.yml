@@ -65,4 +65,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy .output/public --project-name=admin-nortte-blog
+          # projeto "admin-nortte-blog" é o que serve admnortteblog.nortte.com;
+          # --branch é obrigatório aqui porque este job não faz checkout,
+          # sem ele o wrangler publica como preview e a produção fica parada.
+          command: pages deploy .output/public --project-name=admin-nortte-blog --branch=master
