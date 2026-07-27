@@ -30,23 +30,30 @@ const schema = z.object({
 
 type Schema = z.output<typeof schema>
 
+const isLoggingIn = ref(false)
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
+  isLoggingIn.value = true
+
   try {
     // O Nuxt UI retorna os dados validados dentro de 'event.data'
     await auth.login(event.data.email, event.data.password)
-    
+
     navigateTo('/admin/dashboard')
   } catch (error) {
     // Tratamento de erro do Login (ex: senha incorreta no backend)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    
+
     console.error('Login falhou:', errorMessage)
-    
+
     toast.add({
       title: 'Erro no Login',
       description: 'Verifique suas credenciais.',
       color: 'error'
     })
+  } finally {
+    // Fecha o modal tanto no sucesso quanto na falha
+    isLoggingIn.value = false
   }
 }
 </script>
@@ -69,6 +76,18 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </NuxtLink>
       </div>
     </UPageCard>
+
+    <!-- Bloqueia a tela enquanto a autenticação está em andamento -->
+    <UModal v-model:open="isLoggingIn" :dismissible="false" :close="false">
+      <template #content>
+        <UCard>
+          <div class="flex flex-col items-center gap-3 py-4">
+            <UIcon name="i-lucide-loader-circle" class="size-10 animate-spin text-primary" />
+            <p class="text-sm text-gray-500 dark:text-gray-400">Autenticando...</p>
+          </div>
+        </UCard>
+      </template>
+    </UModal>
   </div>
 </template>
 
