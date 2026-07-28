@@ -25,6 +25,7 @@ function validate(state: Partial<Schema>): FormError[] {
 }
 
 const toast = useToast()
+const isSubmitting = ref(false)
 
 function onError(event: FormErrorEvent) {
   toast.add({
@@ -59,6 +60,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
     name: event.data.name,
   }
 
+  isSubmitting.value = true
   try {
     const submitId = useRoute().params.id as string
     await updateCategory(submitId, categoryData)
@@ -73,6 +75,8 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
       description: 'Por favor, tente novamente.',
       color: 'error',
     })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -107,5 +111,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
           </UCard>
         </UContainer>
       </UForm>
+
+      <SubmittingModal v-model:open="isSubmitting" label="Salvando categoria..." />
     </UPageBody>
 </template>

@@ -27,12 +27,14 @@ function validate(state: Partial<Schema>): FormError[] {
 }
 
 const toast = useToast()
+const isSubmitting = ref(false)
 
 async function onSubmit (event: FormSubmitEvent<Schema>) {
   const categoryData: Category = {
     name: event.data.name,
   }
 
+  isSubmitting.value = true
   try {
     await createCategory(categoryData)
     toast.add({
@@ -46,6 +48,8 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
       description: 'Por favor, tente novamente.',
       color: 'error',
     })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -71,5 +75,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
           </UCard>
         </UContainer>
       </UForm>
+
+      <SubmittingModal v-model:open="isSubmitting" label="Criando categoria..." />
     </UPageBody>
 </template> 

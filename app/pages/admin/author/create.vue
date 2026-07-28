@@ -37,6 +37,7 @@ function validate(state: Partial<Schema>): FormError[] {
 }
 
 const toast = useToast()
+const isSubmitting = ref(false)
 
 async function onSubmit (event: FormSubmitEvent<Schema>) {
   const authorData: Author = {
@@ -48,6 +49,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
     preferred_social_network_username: event.data.preferred_social_network_username,
   }
 
+  isSubmitting.value = true
   try {
     await createAuthor(authorData)
     toast.add({
@@ -61,6 +63,8 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
       description: 'Por favor, tente novamente.',
       color: 'error',
     })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -105,5 +109,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
           </UCard>
         </UContainer>
       </UForm>
+
+      <SubmittingModal v-model:open="isSubmitting" label="Criando autor..." />
     </UPageBody>
-</template> 
+</template>

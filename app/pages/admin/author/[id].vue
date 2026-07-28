@@ -35,6 +35,7 @@ function validate(state: Partial<Schema>): FormError[] {
 }
 
 const toast = useToast()
+const isSubmitting = ref(false)
 
 function onError(event: FormErrorEvent) {
   toast.add({
@@ -79,9 +80,10 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
     preferred_social_network_username: event.data.preferred_social_network_username,
   }
 
+  isSubmitting.value = true
   try {
     const submitId = useRoute().params.id as string
-    
+
     await updateAuthor(submitId, authorData)
     toast.add({
       title: 'Autor atualizado com sucesso!',
@@ -94,6 +96,8 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
       description: 'Por favor, tente novamente.',
       color: 'error',
     })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -148,5 +152,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
           </UCard>
         </UContainer>
       </UForm>
+
+      <SubmittingModal v-model:open="isSubmitting" label="Salvando autor..." />
     </UPageBody>
 </template>

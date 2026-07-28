@@ -15,6 +15,7 @@ import type { FormError, FormSubmitEvent,
   | { kind: 'orderedList'; icon: string }
   | { kind: 'blockquote'; icon: string }
   | { kind: 'link'; icon: string }
+  | { kind: 'codeBlock'; icon: string }
 
 const items: EditorToolbarItem[] = [
   { kind: 'mark', mark: 'bold', icon: 'i-lucide-bold' },
@@ -26,7 +27,9 @@ const items: EditorToolbarItem[] = [
   { kind: 'bulletList', icon: 'i-lucide-list' },
   { kind: 'orderedList', icon: 'i-lucide-list-ordered' },
   { kind: 'blockquote', icon: 'i-lucide-quote' },
-  { kind: 'link', icon: 'i-lucide-link' }
+  { kind: 'link', icon: 'i-lucide-link' },
+  { kind: 'codeBlock', icon: 'i-lucide-code-xml' },
+  { kind: 'mark', mark: 'code', icon: 'i-lucide-code' }
 ]
 
 const editorContent = defineModel('editorContent', { type: String })

@@ -213,7 +213,10 @@ const onMarkdownFileChange = (val: any) => {
   }
 }
 
+const isSubmitting = ref(false)
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
+  isSubmitting.value = true
   try {
     let imagePathUrl = '';
     if (state.imagePath) {
@@ -254,6 +257,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   } catch (error) {
     console.error(error);
     toast.add({ title: 'Error', description: 'Erro ao criar post.', color: 'error' })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -384,6 +389,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
         </UCard>
       </UContainer>
     </UForm>
+
+    <SubmittingModal v-model:open="isSubmitting" label="Salvando post..." />
   </UPageBody>
 </template>
 

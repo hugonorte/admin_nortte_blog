@@ -275,7 +275,10 @@ const onMarkdownFileChange = (val: any) => {
   }
 }
 
+const isSubmitting = ref(false)
+
 async function onSubmit(event: FormSubmitEvent<Schema>) {
+  isSubmitting.value = true
   try {
     let imagePathUrl = currentImage.value || '';
 
@@ -311,6 +314,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   } catch (error: any) {
     console.error(error);
     toast.add({ title: 'Error', description: 'Erro: ' + (error?.message || error), color: 'error' })
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -600,6 +605,8 @@ const saveNewFootnote = async (tempId: string | undefined) => {
         </UContainer>
     </UContainer >
   </UCard>
+
+  <SubmittingModal v-model:open="isSubmitting" label="Salvando post..." />
 </UPageBody>
 </template>
 

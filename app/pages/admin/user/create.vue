@@ -56,6 +56,8 @@ onMounted(async () => {
   }
 })
 
+const isSubmitting = ref(false)
+
 async function onSubmit (event: FormSubmitEvent<Schema>) {
   const userData: User & { password?: string } = {
     first_name: event.data.first_name,
@@ -65,6 +67,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
     password: event.data.password,
   }
 
+  isSubmitting.value = true
   try {
     await createUser(userData)
     toast.add({
@@ -78,6 +81,8 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
       description: 'Por favor, tente novamente.',
       color: 'error',
     })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -119,5 +124,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
           </UCard>
         </UContainer>
       </UForm>
+
+      <SubmittingModal v-model:open="isSubmitting" label="Criando usuário..." />
     </UPageBody>
 </template>

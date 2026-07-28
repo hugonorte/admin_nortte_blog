@@ -73,6 +73,8 @@ onMounted(async () => {
   }
 })
 
+const isSubmitting = ref(false)
+
 async function onSubmit (event: FormSubmitEvent<Schema>) {
   const userData: Partial<User> = {
     first_name: event.data.first_name,
@@ -81,6 +83,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
     role: event.data.role,
   }
 
+  isSubmitting.value = true
   try {
     const submitId = useRoute().params.id as string
     await updateUser(submitId, userData)
@@ -95,6 +98,8 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
       description: 'Por favor, tente novamente.',
       color: 'error',
     })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
@@ -140,5 +145,7 @@ async function onSubmit (event: FormSubmitEvent<Schema>) {
           </UCard>
         </UContainer>
       </UForm>
+
+      <SubmittingModal v-model:open="isSubmitting" label="Salvando usuário..." />
     </UPageBody>
 </template>
