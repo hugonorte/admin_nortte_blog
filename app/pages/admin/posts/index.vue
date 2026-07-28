@@ -83,7 +83,10 @@ const columns: TableColumn<Post>[] = [
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const status = row.getValue('status')
+      const rawStatus = row.getValue('status')
+      if (!rawStatus) return h(resolveComponent('UBadge'), { color: 'neutral', variant: 'subtle', label: 'Indefinido' })
+      
+      const status = String(rawStatus).toLowerCase()
       switch (status) {
         case 'published':
           return h(resolveComponent('UBadge'), { color: 'success', variant: 'subtle', label: 'Publicado' })
@@ -92,7 +95,7 @@ const columns: TableColumn<Post>[] = [
         case 'archived':
           return h(resolveComponent('UBadge'), { color: 'error', variant: 'subtle', label: 'Arquivado' })
         default:
-          break;
+          return h(resolveComponent('UBadge'), { color: 'neutral', variant: 'subtle', label: String(rawStatus) })
       }
     }
   },
