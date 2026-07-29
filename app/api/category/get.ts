@@ -7,7 +7,7 @@ interface CategoryData {
     category: Category;
 }
 
-export async function fetchCategories() {
+export async function fetchCategories(page: number = 0, size: number = 10) {
     const auth = useAuth()
     const token = auth.token.value
     if (!token) {
@@ -22,6 +22,7 @@ export async function fetchCategories() {
             method: 'GET' as const,
             credentials: 'include' as RequestCredentials,
             headers: {} as Record<string, string>,
+            query: { page, size }
         };
 
         if (token) {
@@ -36,7 +37,7 @@ export async function fetchCategories() {
 
         const response = await $fetch<PaginatedResponse<Category>>(`${apiUrl}/category`, options)
 
-        return response.content
+        return response
     }
     catch (error) {
         throw createError({

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Category } from '~/types/models'
 import { fetchCategories } from '~/api/category/get'
@@ -13,6 +13,9 @@ definePageMeta({
 const Categories = ref<Category[]>([])
 const isLoading = ref<boolean>(false)
 const globalFilter = ref('')
+const page = ref(1)
+const pageCount = ref(10)
+const total = ref(0)
 const toast = useToast()
 
 const isDeleteModalOpen = ref(false)
@@ -37,7 +40,7 @@ async function handleDelete() {
       title: 'Categoria excluída com sucesso!',
       color: 'success'
     })
-    Categories.value = Categories.value.filter(c => c.id !== categoryToDelete.value!.id)
+    await loadCategories()
   } catch (error) {
     toast.add({
       title: 'Erro ao excluir categoria',
@@ -49,15 +52,25 @@ async function handleDelete() {
   }
 }
 
-onMounted(async () => {
+const loadCategories = async () => {
   isLoading.value = true
   try {
-    Categories.value = await fetchCategories()
+    const response = await fetchCategories(page.value - 1, pageCount.value)
+    Categories.value = (response as any).content || []
+    total.value = (response as any).totalElements || 0
   } catch (error) {
     console.error(error)
   } finally {
     isLoading.value = false
   }
+}
+
+onMounted(() => {
+  loadCategories()
+})
+
+watch(page, () => {
+  loadCategories()
 })
 
 const columns: TableColumn<Category>[] = [
@@ -99,6 +112,14 @@ const columns: TableColumn<Category>[] = [
             </div>
           </template>
         </UTable>
+        
+        <div class="flex justify-end px-3 py-3.5 border-t border-accented">
+          <UPagination
+            v-model="page"
+            :page-count="pageCount"
+            :total="total"
+          />
+        </div>
       </div>
 
       <UModal v-model:open="isDeleteModalOpen">
