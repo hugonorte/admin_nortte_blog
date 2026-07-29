@@ -59,7 +59,10 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
 </script>
 
 <template>
-  <div class="loginbox">
+  <div class="loginbox relative">
+    <a href="https://github.com/hugonorte/admin_nortte_blog" target="_blank" rel="noopener noreferrer" class="absolute top-4 right-6 text-gray-500 hover:text-primary transition-colors" title="Repositório no GitHub">
+      <UIcon name="i-lucide-github" class="size-8" />
+    </a>
     <UPageCard class="w-full max-w-md">
       <Logo class="h-6 w-auto" />
       <UAuthForm
