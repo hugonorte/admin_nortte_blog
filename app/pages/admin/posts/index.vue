@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, h, resolveComponent } from 'vue'
+import { ref, watch, onMounted, h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Post } from '~/types/models'
 import { fetchPosts } from '~/api/post/post'
@@ -13,6 +13,9 @@ definePageMeta({
 const posts = ref<Post[]>([])
 const isLoading = ref<boolean>(false)
 const globalFilter = ref('')
+const page = ref(1)
+const pageCount = ref(10)
+const total = ref(0)
 const isDeleteModalOpen = ref(false)
 const postToDelete = ref<string | null>(null)
 const toast = useToast()
@@ -28,8 +31,7 @@ const handleDelete = async () => {
     isLoading.value = true
     await deletePost(postToDelete.value)
     toast.add({ title: 'Sucesso', description: 'Post excluído com sucesso', color: 'success' })
-    const response = await fetchPosts()
-    posts.value = response.content || []
+    await loadPosts()
   } catch (error) {
     toast.add({ title: 'Erro', description: 'Não foi possível excluir o post', color: 'error' })
   } finally {
@@ -39,16 +41,25 @@ const handleDelete = async () => {
   }
 }
 
-onMounted(async () => {
+const loadPosts = async () => {
   isLoading.value = true
   try {
-    const response = await fetchPosts()
+    const response = await fetchPosts(page.value - 1, pageCount.value)
     posts.value = response.content || []
+    total.value = response.totalElements || 0
   } catch (error) {
     console.error(error)
   } finally {
     isLoading.value = false
   }
+}
+
+onMounted(() => {
+  loadPosts()
+})
+
+watch(page, () => {
+  loadPosts()
 })
 
 const columns: TableColumn<Post>[] = [
@@ -145,6 +156,14 @@ const columns: TableColumn<Post>[] = [
         </div>
 
         <UTable ref="table" v-model:global-filter="globalFilter" :data="posts" :columns="columns" />
+        
+        <div class="flex justify-end px-3 py-3.5 border-t border-accented">
+          <UPagination
+            v-model="page"
+            :page-count="pageCount"
+            :total="total"
+          />
+        </div>
       </div>
 
       <UModal v-model:open="isDeleteModalOpen">

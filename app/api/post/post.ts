@@ -65,7 +65,7 @@ export interface PaginatedResponse<T> {
     empty: boolean;
 }
 
-export async function fetchPosts() : Promise<PaginatedResponse<Post>> {
+export async function fetchPosts(page: number = 0, size: number = 10) : Promise<PaginatedResponse<Post>> {
     const config = useRuntimeConfig()
     const apiUrl = config.public.apiBaseUrl;
     const auth = useAuth()
@@ -84,6 +84,7 @@ export async function fetchPosts() : Promise<PaginatedResponse<Post>> {
                 'Accept': 'application/json',
                 'Authorization': `Bearer ${token}`
             } as Record<string, string>,
+            query: { page, size }
         };
 
         const response = await $fetch<PaginatedResponse<Post>>(`${apiUrl}/post`, options)
